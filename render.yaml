@@ -1,0 +1,6 @@
+services:
+  - type: web
+    name: rummy-score-tracker
+    env: static
+    buildCommand: ""
+    staticPublishPath: .
