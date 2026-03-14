@@ -1488,6 +1488,10 @@ function renderHistory(params) {
   const summaryHtml = summaryPlayers.length > 0 ? `
     <div class="player-summary-card">
       <div class="section-title">Player Summary</div>
+      <div class="summary-row summary-header">
+        <span class="summary-name">Name</span>
+        <span class="summary-net">Net Points</span>
+      </div>
       ${summaryPlayers.map(([name, net]) => `
         <div class="summary-row">
           <span class="summary-name">${name}</span>
