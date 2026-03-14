@@ -690,16 +690,7 @@ input[type="number"].input::-webkit-outer-spin-button { -webkit-appearance: none
 }
 .summary-row:last-child { border-bottom: none; }
 .summary-name { font-weight: 600; font-size: 15px; flex-shrink: 0; }
-.summary-amounts {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-}
-.summary-received { font-size: 13px; color: var(--success); font-weight: 600; }
-.summary-paid     { font-size: 13px; color: var(--danger);  font-weight: 600; }
-.summary-net      { font-size: 14px; font-weight: 800; padding: 2px 8px; border-radius: 20px; }
+.summary-net  { font-size: 15px; font-weight: 800; padding: 3px 10px; border-radius: 20px; }
 .net-positive { background: var(--success-light); color: #15803d; }
 .net-negative { background: var(--danger-light);  color: var(--danger); }
 
@@ -765,8 +756,9 @@ input[type="number"].input::-webkit-outer-spin-button { -webkit-appearance: none
 .settlement-amount {
   font-weight: 800;
   font-size: 16px;
-  color: var(--success);
 }
+.amt-positive { color: var(--success); }
+.amt-negative { color: var(--danger); }
 
 /* ---- Drop score config grid (setup) ---- */
 .drop-scores-grid {

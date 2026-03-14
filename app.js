@@ -303,6 +303,25 @@ function getRankedPlayers(session) {
     );
 }
 
+/**
+ * Returns effective money settlement for a session.
+ * Uses manually entered money if available, otherwise calculates
+ * from session.rules.gameAmount (winner receives, others pay).
+ */
+function getEffectiveMoney(session) {
+  if (session.money && Object.keys(session.money).length > 0) return session.money;
+  const gameAmt = session.rules && session.rules.gameAmount;
+  if (!gameAmt || session.rounds.length === 0) return {};
+  const ranked  = getRankedPlayers(session);
+  const winner  = ranked[0];
+  const numOthers = session.players.length - 1;
+  const money = {};
+  session.players.forEach(p => {
+    money[p.id] = p.id === winner.id ? numOthers * gameAmt : -gameAmt;
+  });
+  return money;
+}
+
 function getWinner(session) {
   if (!session || session.rounds.length === 0) return null;
   return getRankedPlayers(session)[0];
@@ -650,17 +669,21 @@ function renderGame(params) {
   /* Completed banner + money settlement */
   let completedHtml = '';
   if (!isActive) {
-    const winner = getWinner(session);
-    const money  = session.money || {};
-    const moneyEntries = Object.keys(money);
-    const settlementHtml = moneyEntries.length > 0 ? `
+    const winner         = getWinner(session);
+    const effectiveMoney = getEffectiveMoney(session);
+    const settlementHtml = Object.keys(effectiveMoney).length > 0 ? `
       <div class="settlement-card">
         <div class="settlement-title">💰 Settlement</div>
-        ${session.players.filter(p => money[p.id] !== undefined).map(p => `
+        ${session.players.filter(p => effectiveMoney[p.id] !== undefined).map(p => {
+          const amt = effectiveMoney[p.id];
+          return `
           <div class="settlement-row">
             <span class="settlement-name">${p.name}</span>
-            <span class="settlement-amount">₹${money[p.id]}</span>
-          </div>`).join('')}
+            <span class="settlement-amount ${amt >= 0 ? 'amt-positive' : 'amt-negative'}">
+              ${amt >= 0 ? '+' : ''}₹${amt}
+            </span>
+          </div>`;
+        }).join('')}
       </div>` : '';
     completedHtml = `
       <div class="card card-completed">
@@ -1046,17 +1069,28 @@ function confirmEndGame(sessionId) {
   const knockedOut = session.knockedOut || [];
   const totals     = getPlayerTotals(session);
 
+  // Auto-calculate default amounts: winner receives, others pay
+  const gameAmt    = session.rules.gameAmount || 0;
+  const ranked     = getRankedPlayers(session);
+  const winner     = ranked[0];
+  const numOthers  = session.players.length - 1;
+
   const playerRows = session.players.map(p => {
-    const isOut = knockedOut.includes(p.id);
+    const isOut      = knockedOut.includes(p.id);
+    const isWinner   = p.id === winner.id;
+    const defaultAmt = gameAmt
+      ? (isWinner ? numOthers * gameAmt : -gameAmt)
+      : '';
     return `
       <div class="money-row ${isOut ? 'money-row-out' : ''}">
         <div class="money-player-info">
           <span class="money-player-name">${p.name}</span>
           ${isOut ? `<span class="badge badge-out" style="font-size:11px">OUT</span>` : ''}
+          ${isWinner ? `<span class="badge badge-winner" style="font-size:11px">🏆</span>` : ''}
           <span class="money-score">Score: ${totals[p.id]}</span>
         </div>
         <input type="number" class="input money-input" data-player="${p.id}"
-               placeholder="0" min="0">
+               value="${defaultAmt}" placeholder="0">
       </div>`;
   }).join('');
 
@@ -1066,7 +1100,7 @@ function confirmEndGame(sessionId) {
       <button class="btn-icon" onclick="hideModal()">✕</button>
     </div>
     <div class="modal-body">
-      <p class="money-hint">Enter money amount each player owes.</p>
+      <p class="money-hint">+ received &nbsp;·&nbsp; − paid</p>
       <div class="money-list">${playerRows}</div>
     </div>
     <div class="modal-footer">
@@ -1220,36 +1254,27 @@ function renderHistory(params) {
     return;
   }
 
-  /* Build per-player money totals across all completed sessions */
-  const playerTotals = {}; // name → { received, paid }
+  /* Build per-player net money totals across all completed sessions */
+  const playerNetMap = {}; // name → net amount (positive = received, negative = paid)
   sessions.forEach(s => {
-    const money = s.money || {};
+    const money = getEffectiveMoney(s);
     s.players.forEach(p => {
       if (money[p.id] === undefined) return;
-      if (!playerTotals[p.name]) playerTotals[p.name] = { paid: 0, received: 0 };
-      const amt = money[p.id];
-      if (amt > 0) playerTotals[p.name].paid     += amt;
-      else         playerTotals[p.name].received  += Math.abs(amt);
+      playerNetMap[p.name] = (playerNetMap[p.name] || 0) + money[p.id];
     });
   });
-  const summaryPlayers = Object.entries(playerTotals);
+  const summaryPlayers = Object.entries(playerNetMap)
+    .sort((a, b) => b[1] - a[1]); // highest net first
   const summaryHtml = summaryPlayers.length > 0 ? `
     <div class="player-summary-card">
       <div class="section-title">Player Summary</div>
-      ${summaryPlayers.map(([name, t]) => {
-        const net = t.received - t.paid;
-        return `
-          <div class="summary-row">
-            <span class="summary-name">${name}</span>
-            <div class="summary-amounts">
-              <span class="summary-received">+₹${t.received}</span>
-              <span class="summary-paid">-₹${t.paid}</span>
-              <span class="summary-net ${net >= 0 ? 'net-positive' : 'net-negative'}">
-                Net: ${net >= 0 ? '+' : ''}₹${net}
-              </span>
-            </div>
-          </div>`;
-      }).join('')}
+      ${summaryPlayers.map(([name, net]) => `
+        <div class="summary-row">
+          <span class="summary-name">${name}</span>
+          <span class="summary-net ${net >= 0 ? 'net-positive' : 'net-negative'}">
+            ${net >= 0 ? '+' : ''}₹${net}
+          </span>
+        </div>`).join('')}
     </div>` : '';
 
   setContent(`
@@ -1262,8 +1287,7 @@ function renderHistory(params) {
       ${sessions.map(s => {
         const winner = getWinner(s);
         const totals = getPlayerTotals(s);
-        const money  = s.money || {};
-        const hasSettlement = Object.keys(money).length > 0;
+        const money  = getEffectiveMoney(s);
         return `
           <div class="card card-history"
                onclick="Router.navigate('/history/${s.id}')">
@@ -1275,11 +1299,16 @@ function renderHistory(params) {
               ${s.rounds.length} rounds &middot; Target: ${s.rules.targetScore}
             </div>
             <div class="player-scores">
-              ${s.players.map(p => `
-                <span class="player-score-chip
-                      ${winner && winner.id === p.id ? 'chip-winner' : ''}">
-                  ${p.name}: ${totals[p.id]}${money[p.id] !== undefined ? ` · ₹${money[p.id]}` : ''}
-                </span>`).join('')}
+              ${s.players.map(p => {
+                const amt = money[p.id];
+                const amtStr = amt !== undefined
+                  ? ` · <span style="color:${amt >= 0 ? 'var(--success)' : 'var(--danger)'}">
+                        ${amt >= 0 ? '+' : ''}₹${amt}</span>`
+                  : '';
+                return `<span class="player-score-chip ${winner && winner.id === p.id ? 'chip-winner' : ''}">
+                  ${p.name}: ${totals[p.id]}${amtStr}
+                </span>`;
+              }).join('')}
             </div>
           </div>`;
       }).join('')}
