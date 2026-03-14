@@ -742,7 +742,7 @@ function renderSetup() {
         </div>
 
         <div class="form-group">
-          <label class="form-label">Game Amount (per game)</label>
+          <label class="form-label">Game Points</label>
           <input type="number" class="input" id="game-amount"
                  value="300" min="0">
         </div>
