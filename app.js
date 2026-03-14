@@ -742,7 +742,7 @@ function renderSetup() {
         </div>
 
         <div class="form-group">
-          <label class="form-label">Game Amount (₹ per game)</label>
+          <label class="form-label">Game Amount (per game)</label>
           <input type="number" class="input" id="game-amount"
                  value="300" min="0">
         </div>
@@ -895,7 +895,7 @@ function renderGame(params) {
           <div class="settlement-row">
             <span class="settlement-name">${p.name}</span>
             <span class="settlement-amount ${amt >= 0 ? 'amt-positive' : 'amt-negative'}">
-              ${amt >= 0 ? '+' : ''}₹${amt}
+              ${amt >= 0 ? '+' : ''}${amt}
             </span>
           </div>`;
         }).join('')}
@@ -1321,7 +1321,6 @@ function confirmEndGame(sessionId) {
       <button class="btn-icon" onclick="hideModal()">✕</button>
     </div>
     <div class="modal-body">
-      <p class="money-hint">+ received &nbsp;·&nbsp; − paid</p>
       <div class="money-list">${playerRows}</div>
     </div>
     <div class="modal-footer">
@@ -1493,7 +1492,7 @@ function renderHistory(params) {
         <div class="summary-row">
           <span class="summary-name">${name}</span>
           <span class="summary-net ${net >= 0 ? 'net-positive' : 'net-negative'}">
-            ${net >= 0 ? '+' : ''}₹${net}
+            ${net >= 0 ? '+' : ''}${net}
           </span>
         </div>`).join('')}
     </div>` : '';
@@ -1524,7 +1523,7 @@ function renderHistory(params) {
                 const amt = money[p.id];
                 const amtStr = amt !== undefined
                   ? ` · <span style="color:${amt >= 0 ? 'var(--success)' : 'var(--danger)'}">
-                        ${amt >= 0 ? '+' : ''}₹${amt}</span>`
+                        ${amt >= 0 ? '+' : ''}${amt}</span>`
                   : '';
                 return `<span class="player-score-chip ${winner && winner.id === p.id ? 'chip-winner' : ''}">
                   ${p.name}: ${totals[p.id]}${amtStr}
