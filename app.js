@@ -30,11 +30,12 @@ const CloudSync = {
   _ready: false,
   _docRef: null,
   _pushing: false,
+  _pulled: false,   // block push until pull has completed at least once
 
   init() {
     const configured = FIREBASE_CONFIG.apiKey &&
                        FIREBASE_CONFIG.apiKey !== 'YOUR_API_KEY';
-    if (!configured) return;
+    if (!configured) { this._pulled = true; return; } // no cloud — allow push freely
     try {
       // Avoid double-init if Firebase was already initialised
       const app = firebase.apps.length
@@ -49,7 +50,7 @@ const CloudSync = {
 
   /** Pull cloud data and overwrite localStorage. Returns true if new data was found. */
   async pull() {
-    if (!this._ready) return false;
+    if (!this._ready) { this._pulled = true; return false; }
     try {
       const snap = await this._docRef.get();
       if (snap.exists) {
@@ -57,18 +58,20 @@ const CloudSync = {
         if (data && Array.isArray(data.sessions)) {
           localStorage.setItem(STORE_KEY, JSON.stringify(data));
           Store._cache = null; // invalidate cache
+          this._pulled = true;
           return true;
         }
       }
     } catch (err) {
       console.error('[CloudSync] pull failed:', err);
     }
+    this._pulled = true; // allow push even if pull failed
     return false;
   },
 
   /** Push current localStorage data to Firestore (fire-and-forget). */
   push() {
-    if (!this._ready || this._pushing) return;
+    if (!this._ready || this._pushing || !this._pulled) return;
     this._pushing = true;
     Store._load();
     this._docRef.set(Store._cache)
